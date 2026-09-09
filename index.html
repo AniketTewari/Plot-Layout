@@ -167,7 +167,7 @@
             transform:
                 perspective(1400px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
 
-            transform-origin: center center;
+            transform-origin: center top;
 
             will-change: transform;
 
@@ -688,7 +688,7 @@
                 width: 100%;
                 min-width: 320px;
 
-                transform-origin: center center;
+                transform-origin: center top;
             }
 
             .map-wrap {
@@ -735,7 +735,8 @@
             }
 
             .map-3d {
-                margin-top: 4px;
+                margin-top: 8px;
+                transform-origin: center top;
             }
 
             .popup {
