@@ -1,0 +1,3294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width,
+      initial-scale=1.0,
+      maximum-scale=1.0,
+      user-scalable=no">
+
+    <title>Interactive Society Layout</title>
+
+    <style>
+        :root {
+            --ink: #2b2420;
+            --paper: #eef1df;
+            --green-bg: #b9c65a;
+            --green-bg-dark: #a7b64a;
+            --road: #4a433f;
+            --road-dark: #3a342f;
+            --plot-res: #d9b48f;
+            --plot-res-line: #f4e9db;
+            --plot-shop: #b56a3c;
+            --plot-shop-line: #f4e9db;
+            --plot-c: #d9b48f;
+            --garden: #7fae4a;
+            --garden-dark: #5f8f34;
+            --accent: #8a3b22;
+            --sold: #8a2f2f;
+            --reserved: #9a7a1f;
+            --available: #2f7a3f;
+            --panel-bg: #fffaf2;
+            --panel-border: #c9b79a;
+
+            font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1c1f14;
+            color: var(--ink);
+            height: 100%;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header.topbar {
+            background: linear-gradient(180deg, #2c2620, #211c17);
+            color: #f3ead9;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: #f3ead9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #211c17;
+            font-size: 18px;
+            letter-spacing: -1px;
+            flex-shrink: 0;
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: .4px;
+            font-weight: 700;
+        }
+
+        .brand-text p {
+            margin: 2px 0 0;
+            font-size: 11.5px;
+            color: #c9bda3;
+        }
+
+        .hint {
+            font-size: 12.5px;
+            color: #d9cdb2;
+            background: rgba(255, 255, 255, .06);
+            border: 1px solid rgba(255, 255, 255, .14);
+            padding: 7px 12px;
+            border-radius: 20px;
+        }
+
+        .stage {
+            position: relative;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 18px;
+            background:
+                radial-gradient(circle at 30% 10%, #2a2e1c 0%, #1c1f14 60%);
+
+            /*
+   * 3D CAMERA
+   */
+            perspective: 1400px;
+            perspective-origin: 50% 45%;
+
+            overflow: hidden;
+
+            touch-action: none;
+        }
+
+        /* =====================================================
+   3D ROTATION WRAPPER
+====================================================== */
+
+        .map-3d {
+            position: relative;
+            width: 100%;
+            max-width: 1180px;
+
+            transform-style: preserve-3d;
+
+            transform:
+                perspective(1400px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+
+            will-change: transform;
+
+            /*
+   * Important:
+   * This does NOT alter the internal map structure.
+   */
+        }
+
+        /* =====================================================
+   ORIGINAL MAP WRAPPER
+====================================================== */
+
+        .map-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 1180px;
+            background: var(--green-bg);
+            border-radius: 10px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .45);
+            overflow: hidden;
+            border: 1px solid #6f7a2e;
+
+            transform-style: preserve-3d;
+
+            /*
+   * Prevent accidental browser gesture handling
+   * while rotating.
+   */
+            touch-action: none;
+        }
+
+        svg#siteMap {
+            display: block;
+            width: 100%;
+            height: auto;
+
+            /*
+   * SVG remains completely unchanged.
+   */
+            transform-style: preserve-3d;
+        }
+
+        .plot {
+            cursor: pointer;
+            pointer-events: all;
+            stroke: var(--plot-res-line);
+            stroke-width: 2;
+            transition: filter .15s ease, transform .15s ease;
+        }
+
+        .plot:hover {
+            filter: brightness(1.12);
+        }
+
+        .plot.selected {
+            stroke: #1c1f14;
+            stroke-width: 3.5;
+            filter: brightness(1.18);
+        }
+
+        .plot.status-sold {
+            fill-opacity: .85;
+        }
+
+        .plot-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            fill: #3a2c1e;
+            pointer-events: none;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .plot-label.shop {
+            fill: #fbe9dc;
+        }
+
+        .plot-label.cblock {
+            font-size: 9px;
+        }
+
+        .status-dot {
+            pointer-events: none;
+        }
+
+        .garden-zone {
+            cursor: pointer;
+        }
+
+        .garden-zone:hover .garden-fill {
+            filter: brightness(1.08);
+        }
+
+
+        /* =====================================================
+   POPUP
+====================================================== */
+
+        /* =====================================================
+   AESTHETIC PLOT POPUP
+====================================================== */
+
+        .popup {
+            position: absolute;
+            z-index: 50;
+
+            width: 245px;
+            max-width: calc(100vw - 30px);
+
+            background:
+                linear-gradient(145deg,
+                    rgba(255, 255, 255, .98),
+                    rgba(250, 244, 232, .98));
+
+            border: 1px solid rgba(201, 183, 154, .9);
+
+            border-radius: 16px;
+
+            box-shadow:
+                0 18px 45px rgba(0, 0, 0, .35),
+                0 4px 12px rgba(0, 0, 0, .12);
+
+            overflow: visible;
+
+            padding: 0;
+
+            opacity: 0;
+
+            transform:
+                translateY(8px) scale(.94);
+
+            transform-origin: center bottom;
+
+            pointer-events: none;
+
+            transition:
+                opacity .18s ease,
+                transform .18s cubic-bezier(.2, .8, .2, 1);
+        }
+
+        .popup.visible {
+            opacity: 1;
+
+            transform:
+                translateY(0) scale(1);
+
+            pointer-events: auto;
+        }
+
+
+        /* =====================================================
+   POPUP ARROW
+====================================================== */
+
+        .popup::after {
+            content: "";
+
+            position: absolute;
+
+            width: 15px;
+            height: 15px;
+
+            background: #fffaf2;
+
+            border: 1px solid #c9b79a;
+
+            transform: rotate(45deg);
+
+            z-index: -1;
+        }
+
+        .popup.arrow-bottom::after {
+            bottom: -8px;
+            left: 50%;
+
+            margin-left: -8px;
+
+            border-left: none;
+            border-top: none;
+        }
+
+        .popup.arrow-top::after {
+            top: -8px;
+            left: 50%;
+
+            margin-left: -8px;
+
+            border-right: none;
+            border-bottom: none;
+        }
+
+
+        /* =====================================================
+   POPUP HEADER
+====================================================== */
+
+        .popup-head {
+            position: relative;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 13px 14px;
+
+            background:
+                linear-gradient(135deg,
+                    #3b342c,
+                    #211c17);
+
+            color: #fff;
+
+            border-radius: 16px 16px 0 0;
+
+            border-bottom: 3px solid var(--accent);
+        }
+
+
+        /* Small decorative line */
+
+        .popup-head::before {
+            content: "";
+
+            position: absolute;
+
+            left: 14px;
+            bottom: -3px;
+
+            width: 42px;
+            height: 3px;
+
+            background: #d9b48f;
+
+            border-radius: 5px;
+        }
+
+
+        .popup-head strong {
+            font-size: 17px;
+
+            font-weight: 800;
+
+            letter-spacing: .3px;
+
+            color: #f8eddb;
+
+            display: flex;
+            align-items: center;
+
+            gap: 7px;
+        }
+
+        .popup-head strong::before {
+            content: "🏡";
+
+            font-size: 16px;
+        }
+
+
+        /* =====================================================
+   CLOSE BUTTON
+====================================================== */
+
+        .popup-close {
+            width: 28px;
+            height: 28px;
+
+            border: none;
+
+            border-radius: 50%;
+
+            background: rgba(255, 255, 255, .10);
+
+            color: #e9dcc8;
+
+            font-size: 14px;
+
+            line-height: 28px;
+
+            padding: 0;
+
+            cursor: pointer;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            transition:
+                background .15s ease,
+                color .15s ease,
+                transform .15s ease;
+        }
+
+        .popup-close:hover {
+            background: rgba(255, 255, 255, .20);
+
+            color: #fff;
+
+            transform: rotate(90deg);
+        }
+
+
+        /* =====================================================
+   POPUP BODY
+====================================================== */
+
+        .popup-body {
+            padding: 12px 13px 13px;
+
+            background: #fffaf2;
+
+            border-radius: 0 0 16px 16px;
+        }
+
+
+        /* =====================================================
+   DETAIL ROW
+====================================================== */
+
+        .detail-row {
+            display: flex;
+
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 12px;
+
+            min-height: 32px;
+
+            padding: 6px 7px;
+
+            border-bottom: 1px solid #eee3d1;
+
+            font-size: 12px;
+        }
+
+        .detail-row:last-of-type {
+            border-bottom: none;
+        }
+
+
+        .detail-row span {
+            color: #8a7a62;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            letter-spacing: .15px;
+        }
+
+
+        .detail-row strong {
+            color: #352d25;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            text-align: right;
+        }
+
+
+        /* =====================================================
+   STATUS
+====================================================== */
+
+        .detail-row .status-pill {
+            display: inline-flex;
+
+            align-items: center;
+            justify-content: center;
+
+            min-width: 76px;
+
+            padding: 4px 9px;
+
+            border-radius: 20px;
+
+            color: #fff;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            letter-spacing: .2px;
+
+            box-shadow:
+                0 2px 5px rgba(0, 0, 0, .15);
+        }
+
+
+        /* Override your existing lowercase mismatch */
+
+        .status-pill.available {
+            background: #2f7a3f;
+        }
+
+        .status-pill.reserved {
+            background: #9a7a1f;
+        }
+
+        .status-pill.sold {
+            background: #8a2f2f;
+        }
+
+
+        /* =====================================================
+   ENQUIRE BUTTON
+====================================================== */
+
+        .enquire-btn {
+            width: 100%;
+
+            margin-top: 12px;
+
+            padding: 10px 12px;
+
+            border: none;
+
+            border-radius: 9px;
+
+            background:
+                linear-gradient(135deg,
+                    #9a4527,
+                    #712d1b);
+
+            color: #fff;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            letter-spacing: .15px;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 5px 12px rgba(113, 45, 27, .25);
+
+            transition:
+                transform .15s ease,
+                box-shadow .15s ease,
+                filter .15s ease;
+        }
+
+        .enquire-btn:hover {
+            filter: brightness(1.08);
+
+            box-shadow:
+                0 7px 15px rgba(113, 45, 27, .32);
+        }
+
+        .enquire-btn:active {
+            transform: scale(.97);
+        }
+
+        /* =====================================================
+   3D ROTATION CONTROLS
+====================================================== */
+
+        .rotation-controls {
+            position: absolute;
+            z-index: 100;
+
+            bottom: 15px;
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            display: flex;
+            align-items: center;
+            gap: 6px;
+
+            padding: 6px;
+
+            background: rgba(33, 28, 23, .88);
+
+            border:
+                1px solid rgba(255, 255, 255, .18);
+
+            border-radius: 12px;
+
+            box-shadow:
+                0 8px 24px rgba(0, 0, 0, .4);
+
+            backdrop-filter: blur(8px);
+
+            user-select: none;
+        }
+
+        .rotation-controls button {
+            width: 34px;
+            height: 32px;
+
+            border: none;
+            border-radius: 7px;
+
+            background: #4a433f;
+            color: #f3ead9;
+
+            font-size: 16px;
+            font-weight: 700;
+
+            cursor: pointer;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            transition:
+                background .15s ease,
+                transform .15s ease;
+        }
+
+        .rotation-controls button:hover {
+            background: #8a3b22;
+        }
+
+        .rotation-controls button:active {
+            transform: scale(.9);
+        }
+
+        .rotation-text {
+            color: #d9cdb2;
+            font-size: 10px;
+            padding: 0 5px;
+            white-space: nowrap;
+        }
+
+
+        @media(max-width:640px) {
+
+            .popup {
+                width: 190px;
+            }
+
+            .brand-text h1 {
+                font-size: 13.5px;
+            }
+
+            .brand-text p {
+                font-size: 10px;
+            }
+
+            .hint {
+                display: none;
+            }
+
+            .stage {
+                padding: 10px;
+
+                /*
+     * More natural mobile 3D perspective
+     */
+                perspective: 1100px;
+            }
+
+            .rotation-controls {
+                bottom: 8px;
+            }
+
+            .rotation-text {
+                display: none;
+            }
+
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <header class="topbar">
+
+            <div class="brand">
+
+                <div class="brand-mark">
+                    AK
+                </div>
+
+                <div class="brand-text">
+
+                    <h1>
+                        SITE LAYOUT
+                    </h1>
+
+                    <p>
+                        Er. Asim Khan · Civil Engineer &amp; Consultant · 📞 8770010684
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="hint">
+                Tap any plot on the map to view its details
+            </div>
+
+        </header>
+
+
+        <div class="stage" id="stage">
+
+
+            <!-- =====================================================
+     3D WRAPPER
+====================================================== -->
+
+            <div class="map-3d" id="map3D">
+
+
+                <div class="map-wrap" id="mapWrap">
+
+                    <svg id="siteMap" viewBox="0 0 1280 860" xmlns="http://www.w3.org/2000/svg">
+
+
+                        <!-- =====================================================
+     BACKGROUND
+====================================================== -->
+
+                        <rect x="0" y="0" width="1280" height="860" fill="url(#bgGrad)" />
+
+                        <defs>
+
+                            <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+
+                                <stop offset="0" stop-color="#c3cf66" />
+
+                                <stop offset="1" stop-color="#aebb52" />
+
+                            </linearGradient>
+
+                            <pattern id="shopHatch" width="8" height="8" patternTransform="rotate(45)"
+                                patternUnits="userSpaceOnUse">
+
+                                <rect width="8" height="8" fill="var(--plot-shop)" />
+
+                                <line x1="0" y1="0" x2="0" y2="8" stroke="#9c5a32" stroke-width="2" />
+
+                            </pattern>
+
+                        </defs>
+
+
+                        <!-- =====================================================
+     PERIMETER TREES
+====================================================== -->
+
+                        <g id="perimeterTrees"></g>
+
+
+                        <!-- =====================================================
+     OUTER PLOT LAND
+====================================================== -->
+
+                        <polygon points="
+    85,240
+    1005,90
+    1150,65
+    1195,92
+    1245,290
+    1263,540
+    1263,685
+    195,693
+    85,650
+    25,595
+  " fill="#e7c9a4" stroke="#fff" stroke-width="3" />
+
+
+                        <!-- =====================================================
+     ROAD NETWORK
+====================================================== -->
+
+                        <g id="roadNetwork"></g>
+
+
+                        <!-- =====================================================
+     GARDENS
+====================================================== -->
+
+                        <g id="gardenSmall" class="garden-zone" data-name="Society Garden"
+                            data-desc="Landscaped green pocket-park with walking path and flower beds.">
+                        </g>
+
+                        <g id="gardenBig" class="garden-zone" data-name="Central Park &amp; Fountain"
+                            data-desc="Main community park featuring a central fountain, shaded seating pavilions and lawns.">
+                        </g>
+
+
+                        <!-- =====================================================
+     PLOTS
+====================================================== -->
+
+                        <g id="plotsLayer"></g>
+
+
+                        <!-- =====================================================
+     HIGHWAY
+====================================================== -->
+
+                        <g id="highway"></g>
+
+
+                        <!-- =====================================================
+     BRAND MARK
+====================================================== -->
+
+                        <g transform="translate(18,14)" opacity="0.92">
+
+                            <rect x="0" y="0" width="34" height="34" rx="7" fill="#211c17" />
+
+                            <text x="17" y="23" text-anchor="middle" font-size="15" font-weight="800" fill="#f3ead9"
+                                font-family="Segoe UI, Arial">
+                                AK
+                            </text>
+
+                        </g>
+
+                        <text x="58" y="24" font-size="13" font-weight="700" fill="#211c17">
+                            ER. ASIM KHAN
+                        </text>
+
+                        <text x="58" y="37" font-size="9" fill="#3a3327">
+                            Civil Engineer &amp; Consultant
+                        </text>
+
+                    </svg>
+
+
+                    <!-- =====================================================
+     POPUP
+====================================================== -->
+
+                    <div id="popup" class="popup" role="dialog" aria-hidden="true">
+
+                        <div class="popup-head">
+
+                            <strong id="popupTitle">
+                                A1
+                            </strong>
+
+                            <button class="popup-close" id="popupClose" aria-label="Close">
+                                ✕
+                            </button>
+
+                        </div>
+
+                        <div class="popup-body" id="popupBody">
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =====================================================
+     3D CONTROLS
+====================================================== -->
+
+            <div class="rotation-controls">
+
+                <button type="button" id="rotateLeft" aria-label="Rotate left">
+                    ⟲
+                </button>
+
+                <button type="button" id="rotateRight" aria-label="Rotate right">
+                    ⟳
+                </button>
+
+                <button type="button" id="rotateUp" aria-label="Rotate up">
+                    ↑
+                </button>
+
+                <button type="button" id="rotateDown" aria-label="Rotate down">
+                    ↓
+                </button>
+
+                <span class="rotation-text">
+                    Drag map to rotate
+                </span>
+
+                <button type="button" id="resetRotation" aria-label="Reset 3D rotation">
+                    ↺
+                </button>
+
+            </div>
+
+
+        </div>
+
+
+        <footer class="foot">
+
+            Layout is an interactive schematic reproduction for illustrative purposes
+            · Not to exact engineering scale
+
+        </footer>
+
+    </div>
+
+
+    <script>
+
+        (function () {
+
+            const svgNS = "http://www.w3.org/2000/svg";
+
+            const plotsLayer =
+                document.getElementById("plotsLayer");
+
+            const roadNetwork =
+                document.getElementById("roadNetwork");
+
+            const highway =
+                document.getElementById("highway");
+
+            const perimeterTrees =
+                document.getElementById("perimeterTrees");
+
+
+            /* =====================================================
+               GEOMETRY
+            ====================================================== */
+
+            function bilerp(TL, TR, BL, BR, u, v) {
+
+                const x =
+                    TL.x * (1 - u) * (1 - v) +
+                    TR.x * u * (1 - v) +
+                    BL.x * (1 - u) * v +
+                    BR.x * u * v;
+
+                const y =
+                    TL.y * (1 - u) * (1 - v) +
+                    TR.y * u * (1 - v) +
+                    BL.y * (1 - u) * v +
+                    BR.y * u * v;
+
+                return { x, y };
+
+            }
+
+
+            function pointsAttr(pts) {
+
+                return pts
+                    .map(p =>
+                        p.x.toFixed(1) + "," + p.y.toFixed(1)
+                    )
+                    .join(" ");
+
+            }
+
+
+            function centroid(pts) {
+
+                let x = 0;
+                let y = 0;
+
+                pts.forEach(p => {
+                    x += p.x;
+                    y += p.y;
+                });
+
+                return {
+                    x: x / pts.length,
+                    y: y / pts.length
+                };
+
+            }
+
+
+            function edgeAngle(p1, p2) {
+
+                return Math.atan2(
+                    p2.y - p1.y,
+                    p2.x - p1.x
+                ) * 180 / Math.PI;
+
+            }
+
+
+            const allPlots = [];
+
+
+            /* =====================================================
+               BUILD GRID
+            ====================================================== */
+
+            function buildGrid(
+                TL,
+                TR,
+                BL,
+                BR,
+                cols,
+                rows,
+                labels2D,
+                category,
+                opts
+            ) {
+
+                opts = opts || {};
+
+                for (let r = 0; r < rows; r++) {
+
+                    for (let c = 0; c < cols; c++) {
+
+                        const u0 = c / cols;
+                        const u1 = (c + 1) / cols;
+
+                        const v0 = r / rows;
+                        const v1 = (r + 1) / rows;
+
+
+                        const p1 = bilerp(
+                            TL, TR, BL, BR,
+                            u0, v0
+                        );
+
+                        const p2 = bilerp(
+                            TL, TR, BL, BR,
+                            u1, v0
+                        );
+
+                        const p3 = bilerp(
+                            TL, TR, BL, BR,
+                            u1, v1
+                        );
+
+                        const p4 = bilerp(
+                            TL, TR, BL, BR,
+                            u0, v1
+                        );
+
+
+                        const label = labels2D[r][c];
+
+                        if (!label)
+                            continue;
+
+
+                        addPlot(
+                            label,
+                            category,
+                            [p1, p2, p3, p4],
+                            opts
+                        );
+
+                    }
+
+                }
+
+            }
+
+
+            /* =====================================================
+               ADD PLOT
+            ====================================================== */
+
+            function addPlot(
+                label,
+                category,
+                pts,
+                opts
+            ) {
+
+                opts = opts || {};
+
+
+                const g =
+                    document.createElementNS(
+                        svgNS,
+                        "g"
+                    );
+
+
+                const poly =
+                    document.createElementNS(
+                        svgNS,
+                        "polygon"
+                    );
+
+
+                poly.setAttribute(
+                    "points",
+                    pointsAttr(pts)
+                );
+
+
+                poly.setAttribute(
+                    "class",
+                    "plot cat-" + category
+                );
+
+
+                poly.dataset.label = label;
+                poly.dataset.category = category;
+
+
+                let fill = "#d9b48f";
+
+                if (category === "shop")
+                    fill = "url(#shopHatch)";
+
+                if (category === "community")
+                    fill = "#e3c6a2";
+
+
+                poly.setAttribute(
+                    "fill",
+                    fill
+                );
+
+
+                g.appendChild(poly);
+
+
+                const c = centroid(pts);
+
+
+                const txt =
+                    document.createElementNS(
+                        svgNS,
+                        "text"
+                    );
+
+
+                txt.setAttribute("x", c.x);
+                txt.setAttribute("y", c.y);
+
+
+                let rot = opts.rotate;
+
+
+                if (rot === undefined) {
+
+                    rot = edgeAngle(
+                        pts[0],
+                        pts[1]
+                    );
+
+                    if (rot > 90)
+                        rot -= 180;
+
+                    if (rot < -90)
+                        rot += 180;
+
+                    rot = rot * 0.35;
+
+                }
+
+
+                txt.setAttribute(
+                    "transform",
+                    `rotate(${rot.toFixed(1)} ${c.x.toFixed(1)} ${c.y.toFixed(1)})`
+                );
+
+
+                txt.setAttribute(
+                    "class",
+                    "plot-label" +
+                    (category === "shop" ? " shop" : "") +
+                    (category === "community" ? " cblock" : "")
+                );
+
+
+                txt.textContent = label;
+
+                g.appendChild(txt);
+
+                plotsLayer.appendChild(g);
+
+
+                allPlots.push({
+                    label,
+                    category,
+                    poly,
+                    group: g,
+                    center: c
+                });
+
+            }
+
+
+            /* =====================================================
+               ROAD
+            ====================================================== */
+
+            function road(pts) {
+
+                const p =
+                    document.createElementNS(
+                        svgNS,
+                        "polygon"
+                    );
+
+                p.setAttribute(
+                    "points",
+                    pointsAttr(pts)
+                );
+
+                p.setAttribute(
+                    "fill",
+                    "#4a433f"
+                );
+
+                roadNetwork.appendChild(p);
+
+            }
+
+
+            /* =====================================================
+               HORIZONTAL ROADS
+            ====================================================== */
+
+            road([
+                { x: 18, y: 246 },
+                { x: 1150, y: 210 },
+                { x: 1210, y: 250 },
+                { x: 18, y: 280 }
+            ]);
+
+
+            road([
+                { x: 15, y: 410 },
+                { x: 1195, y: 392 },
+                { x: 1245, y: 432 },
+                { x: 15, y: 445 }
+            ]);
+
+
+            /* =====================================================
+               WIDER STRAIGHT CENTRAL ROAD
+            ====================================================== */
+
+            road([
+                { x: 570, y: 278 },
+                { x: 640, y: 278 },
+                { x: 640, y: 685 },
+                { x: 570, y: 685 }
+            ]);
+
+
+            /* =====================================================
+               C BLOCK VERTICAL ROAD
+            ====================================================== */
+
+            road([
+                { x: 1060, y: 88 },
+                { x: 1082, y: 88 },
+                { x: 1082, y: 245 },
+                { x: 1060, y: 245 }
+            ]);
+
+
+            /* =====================================================
+               ENTRANCE DRIVEWAY
+            ====================================================== */
+
+            const drive =
+                document.createElementNS(
+                    svgNS,
+                    "polygon"
+                );
+
+            drive.setAttribute(
+                "points",
+                pointsAttr([
+                    { x: 570, y: 685 },
+                    { x: 640, y: 685 },
+                    { x: 670, y: 705 },
+                    { x: 550, y: 705 }
+                ])
+            );
+
+            drive.setAttribute(
+                "fill",
+                "#efe9dd"
+            );
+
+            drive.setAttribute(
+                "stroke",
+                "#c9c0ac"
+            );
+
+            roadNetwork.appendChild(drive);
+
+
+            /* =====================================================
+               ROAD CENTER LINE
+            ====================================================== */
+
+            const centerLine =
+                document.createElementNS(
+                    svgNS,
+                    "line"
+                );
+
+            centerLine.setAttribute("x1", 605);
+            centerLine.setAttribute("y1", 278);
+            centerLine.setAttribute("x2", 605);
+            centerLine.setAttribute("y2", 685);
+
+            centerLine.setAttribute(
+                "stroke",
+                "#e9e4d8"
+            );
+
+            centerLine.setAttribute(
+                "stroke-width",
+                "2"
+            );
+
+            centerLine.setAttribute(
+                "stroke-dasharray",
+                "14 12"
+            );
+
+            centerLine.setAttribute(
+                "opacity",
+                ".65"
+            );
+
+            roadNetwork.appendChild(
+                centerLine
+            );
+
+
+            /* =====================================================
+               GARDENS
+            ====================================================== */
+
+            (function gardens() {
+
+                const smallG =
+                    document.getElementById(
+                        "gardenSmall"
+                    );
+
+
+                const p =
+                    document.createElementNS(
+                        svgNS,
+                        "polygon"
+                    );
+
+
+                p.setAttribute(
+                    "points",
+                    pointsAttr([
+                        { x: 492, y: 160 },
+                        { x: 636, y: 148 },
+                        { x: 645, y: 236 },
+                        { x: 500, y: 246 }
+                    ])
+                );
+
+
+                p.setAttribute("fill", "#7fae4a");
+                p.setAttribute("stroke", "#fff");
+                p.setAttribute("stroke-width", "2");
+                p.setAttribute("class", "garden-fill");
+
+                smallG.appendChild(p);
+
+
+                const path =
+                    document.createElementNS(
+                        svgNS,
+                        "line"
+                    );
+
+                path.setAttribute("x1", 500);
+                path.setAttribute("y1", 235);
+                path.setAttribute("x2", 636);
+                path.setAttribute("y2", 160);
+                path.setAttribute("stroke", "#cdd9a3");
+                path.setAttribute("stroke-width", "4");
+
+                smallG.appendChild(path);
+
+
+                [
+                    [535, 205],
+                    [590, 185]
+                ].forEach(([x, y]) => {
+
+                    const fb =
+                        document.createElementNS(
+                            svgNS,
+                            "rect"
+                        );
+
+                    fb.setAttribute("x", x);
+                    fb.setAttribute("y", y);
+                    fb.setAttribute("width", 10);
+                    fb.setAttribute("height", 18);
+                    fb.setAttribute("fill", "#b23b3b");
+
+                    fb.setAttribute(
+                        "transform",
+                        `rotate(-8 ${x} ${y})`
+                    );
+
+                    smallG.appendChild(fb);
+
+                });
+
+
+                const bigG =
+                    document.getElementById(
+                        "gardenBig"
+                    );
+
+
+                const p2 =
+                    document.createElementNS(
+                        svgNS,
+                        "polygon"
+                    );
+
+
+                p2.setAttribute(
+                    "points",
+                    pointsAttr([
+                        { x: 730, y: 150 },
+                        { x: 1000, y: 88 },
+                        { x: 1012, y: 236 },
+                        { x: 744, y: 246 }
+                    ])
+                );
+
+                p2.setAttribute("fill", "#7fae4a");
+                p2.setAttribute("stroke", "#fff");
+                p2.setAttribute("stroke-width", "2");
+                p2.setAttribute("class", "garden-fill");
+
+                bigG.appendChild(p2);
+
+
+                const fx = 875;
+                const fy = 178;
+
+
+                [26, 17, 8].forEach((r, i) => {
+
+                    const c =
+                        document.createElementNS(
+                            svgNS,
+                            "circle"
+                        );
+
+                    c.setAttribute("cx", fx);
+                    c.setAttribute("cy", fy);
+                    c.setAttribute("r", r);
+
+                    c.setAttribute(
+                        "fill",
+                        i === 2 ? "#8fb9e0" : "none"
+                    );
+
+                    c.setAttribute(
+                        "stroke",
+                        "#e7e2d3"
+                    );
+
+                    c.setAttribute(
+                        "stroke-width",
+                        "2"
+                    );
+
+                    bigG.appendChild(c);
+
+                });
+
+
+                [
+                    [790, 190],
+                    [965, 165]
+                ].forEach(([x, y]) => {
+
+                    const c =
+                        document.createElementNS(
+                            svgNS,
+                            "circle"
+                        );
+
+                    c.setAttribute("cx", x);
+                    c.setAttribute("cy", y);
+                    c.setAttribute("r", 16);
+                    c.setAttribute("fill", "#8a6a4a");
+
+                    bigG.appendChild(c);
+
+
+                    const c2 =
+                        document.createElementNS(
+                            svgNS,
+                            "circle"
+                        );
+
+                    c2.setAttribute("cx", x);
+                    c2.setAttribute("cy", y);
+                    c2.setAttribute("r", 11);
+                    c2.setAttribute("fill", "#3f6b2c");
+
+                    bigG.appendChild(c2);
+
+                });
+
+
+                const ring =
+                    document.createElementNS(
+                        svgNS,
+                        "ellipse"
+                    );
+
+                ring.setAttribute("cx", fx);
+                ring.setAttribute("cy", fy);
+                ring.setAttribute("rx", 95);
+                ring.setAttribute("ry", 48);
+                ring.setAttribute("fill", "none");
+                ring.setAttribute("stroke", "#cdd9a3");
+                ring.setAttribute("stroke-width", "5");
+
+                bigG.appendChild(ring);
+
+            })();
+
+
+            /* =====================================================
+               SEQUENCE
+            ====================================================== */
+
+            function seq(prefix, from, to) {
+
+                const out = [];
+
+                if (from <= to) {
+
+                    for (
+                        let i = from;
+                        i <= to;
+                        i++
+                    ) {
+                        out.push(prefix + i);
+                    }
+
+                } else {
+
+                    for (
+                        let i = from;
+                        i >= to;
+                        i--
+                    ) {
+                        out.push(prefix + i);
+                    }
+
+                }
+
+                return out;
+
+            }
+
+
+            /* =====================================================
+               A SERIES — TOP LEFT
+            ====================================================== */
+
+            buildGrid(
+                { x: 85, y: 278 },
+                { x: 570, y: 278 },
+                { x: 70, y: 348 },
+                { x: 570, y: 348 },
+                14,
+                1,
+                [seq("A", 64, 51)],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               A36-A50
+            ====================================================== */
+
+            buildGrid(
+                { x: 70, y: 348 },
+                { x: 570, y: 348 },
+                { x: 40, y: 412 },
+                { x: 570, y: 412 },
+                15,
+                1,
+                [
+                    ["A36", ...seq("A", 37, 50)]
+                ],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               A19-A35
+            ====================================================== */
+
+            buildGrid(
+                { x: 40, y: 442 },
+                { x: 570, y: 442 },
+                { x: 25, y: 528 },
+                { x: 570, y: 528 },
+                17,
+                1,
+                [
+                    seq("A", 35, 19)
+                ],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               B12-B22
+            ====================================================== */
+
+            buildGrid(
+                { x: 640, y: 278 },
+                { x: 1160, y: 278 },
+                { x: 640, y: 348 },
+                { x: 1175, y: 348 },
+                11,
+                1,
+                [
+                    seq("B", 12, 22)
+                ],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               B1-B11
+            ====================================================== */
+
+            buildGrid(
+                { x: 640, y: 348 },
+                { x: 1175, y: 348 },
+                { x: 640, y: 412 },
+                { x: 1185, y: 412 },
+                11,
+                1,
+                [
+                    seq("B", 11, 1)
+                ],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               A1-A18
+            ====================================================== */
+
+            buildGrid(
+                { x: 640, y: 442 },
+                { x: 1230, y: 442 },
+                { x: 640, y: 528 },
+                { x: 1230, y: 528 },
+                18,
+                1,
+                [
+                    seq("A", 18, 1)
+                ],
+                "res",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               CS14
+            ====================================================== */
+
+            addPlot(
+                "CS14",
+                "shop",
+                [
+                    { x: 25, y: 528 },
+                    { x: 105, y: 528 },
+                    { x: 105, y: 685 },
+                    { x: 195, y: 693 },
+                    { x: 25, y: 595 }
+                ],
+                {
+                    rotate: -12
+                }
+            );
+
+
+            /* =====================================================
+               CS13-CS9
+            ====================================================== */
+
+            buildGrid(
+                { x: 105, y: 528 },
+                { x: 570, y: 528 },
+                { x: 105, y: 685 },
+                { x: 570, y: 685 },
+                5,
+                1,
+                [
+                    seq("CS", 13, 9)
+                ],
+                "shop",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               CS8-CS1
+            ====================================================== */
+
+            buildGrid(
+                { x: 640, y: 528 },
+                { x: 1250, y: 528 },
+                { x: 640, y: 685 },
+                { x: 1263, y: 685 },
+                8,
+                1,
+                [
+                    seq("CS", 8, 1)
+                ],
+                "shop",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               COMMUNITY BLOCK — C SERIES
+            ====================================================== */
+
+
+            /* C6-C10 */
+
+            buildGrid(
+                { x: 985, y: 88 },
+                { x: 1060, y: 88 },
+                { x: 985, y: 245 },
+                { x: 1060, y: 245 },
+                1,
+                5,
+                [
+                    ["C6"],
+                    ["C7"],
+                    ["C8"],
+                    ["C9"],
+                    ["C10"]
+                ],
+                "community",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* C5-C1 */
+
+            buildGrid(
+                { x: 1082, y: 88 },
+                { x: 1160, y: 88 },
+                { x: 1082, y: 245 },
+                { x: 1160, y: 245 },
+                1,
+                5,
+                [
+                    ["C5"],
+                    ["C4"],
+                    ["C3"],
+                    ["C2"],
+                    ["C1"]
+                ],
+                "community",
+                {
+                    rotate: 0
+                }
+            );
+
+
+            /* =====================================================
+               C BLOCK ROAD CENTER LINE
+            ====================================================== */
+
+            const cCenterLine =
+                document.createElementNS(
+                    svgNS,
+                    "line"
+                );
+
+            cCenterLine.setAttribute(
+                "x1",
+                1071
+            );
+
+            cCenterLine.setAttribute(
+                "y1",
+                88
+            );
+
+            cCenterLine.setAttribute(
+                "x2",
+                1071
+            );
+
+            cCenterLine.setAttribute(
+                "y2",
+                245
+            );
+
+            cCenterLine.setAttribute(
+                "stroke",
+                "#e9e4d8"
+            );
+
+            cCenterLine.setAttribute(
+                "stroke-width",
+                "2"
+            );
+
+            cCenterLine.setAttribute(
+                "stroke-dasharray",
+                "12 10"
+            );
+
+            cCenterLine.setAttribute(
+                "opacity",
+                ".7"
+            );
+
+            roadNetwork.appendChild(
+                cCenterLine
+            );
+
+
+            /* =====================================================
+               HIGHWAY
+            ====================================================== */
+
+            (function buildHighway() {
+
+                const band =
+                    document.createElementNS(
+                        svgNS,
+                        "rect"
+                    );
+
+                band.setAttribute("x", 0);
+                band.setAttribute("y", 700);
+                band.setAttribute("width", 1280);
+                band.setAttribute("height", 160);
+                band.setAttribute("fill", "#413b36");
+
+                highway.appendChild(band);
+
+
+                for (
+                    let x = 10;
+                    x < 1280;
+                    x += 46
+                ) {
+
+                    const l =
+                        document.createElementNS(
+                            svgNS,
+                            "rect"
+                        );
+
+                    l.setAttribute("x", x);
+                    l.setAttribute("y", 750);
+                    l.setAttribute("width", 24);
+                    l.setAttribute("height", 4);
+                    l.setAttribute("fill", "#e9e4d8");
+                    l.setAttribute("opacity", "0.75");
+
+                    highway.appendChild(l);
+
+                }
+
+
+                for (
+                    let x = 10;
+                    x < 1280;
+                    x += 46
+                ) {
+
+                    const l =
+                        document.createElementNS(
+                            svgNS,
+                            "rect"
+                        );
+
+                    l.setAttribute("x", x + 18);
+                    l.setAttribute("y", 818);
+                    l.setAttribute("width", 24);
+                    l.setAttribute("height", 4);
+                    l.setAttribute("fill", "#e9e4d8");
+                    l.setAttribute("opacity", "0.6");
+
+                    highway.appendChild(l);
+
+                }
+
+
+                [706, 845].forEach(y => {
+
+                    const el =
+                        document.createElementNS(
+                            svgNS,
+                            "line"
+                        );
+
+                    el.setAttribute("x1", 0);
+                    el.setAttribute("y1", y);
+                    el.setAttribute("x2", 1280);
+                    el.setAttribute("y2", y);
+                    el.setAttribute("stroke", "#cfc9bd");
+                    el.setAttribute("stroke-width", "2");
+
+                    highway.appendChild(el);
+
+                });
+
+
+                const cars = [
+
+                    { x: 120, y: 790, c: "#c0492f", r: -3 },
+                    { x: 330, y: 770, c: "#274a8a", r: -2 },
+                    { x: 560, y: 756, c: "#e8e8e8", r: 0 },
+                    { x: 705, y: 790, c: "#d8b52a", r: 2 },
+                    { x: 900, y: 770, c: "#2c2c2c", r: -1 },
+                    { x: 1120, y: 756, c: "#2c2c2c", r: 1 }
+
+                ];
+
+
+                cars.forEach(car => {
+
+                    const g =
+                        document.createElementNS(
+                            svgNS,
+                            "g"
+                        );
+
+
+                    g.setAttribute(
+                        "transform",
+                        `translate(${car.x} ${car.y}) rotate(${car.r})`
+                    );
+
+
+                    const body =
+                        document.createElementNS(
+                            svgNS,
+                            "rect"
+                        );
+
+                    body.setAttribute("x", -16);
+                    body.setAttribute("y", -8);
+                    body.setAttribute("width", 32);
+                    body.setAttribute("height", 16);
+                    body.setAttribute("rx", 5);
+                    body.setAttribute("fill", car.c);
+
+                    g.appendChild(body);
+
+
+                    const cab =
+                        document.createElementNS(
+                            svgNS,
+                            "rect"
+                        );
+
+                    cab.setAttribute("x", -8);
+                    cab.setAttribute("y", -12);
+                    cab.setAttribute("width", 16);
+                    cab.setAttribute("height", 8);
+                    cab.setAttribute("rx", 3);
+                    cab.setAttribute("fill", "#dfeaf3");
+                    cab.setAttribute("opacity", "0.85");
+
+                    g.appendChild(cab);
+
+                    highway.appendChild(g);
+
+                });
+
+            })();
+
+
+            /* =====================================================
+               TREES
+            ====================================================== */
+
+            function tree(x, y, scale) {
+
+                const g =
+                    document.createElementNS(
+                        svgNS,
+                        "g"
+                    );
+
+
+                g.setAttribute(
+                    "transform",
+                    `translate(${x} ${y}) scale(${scale || 1})`
+                );
+
+
+                const shadow =
+                    document.createElementNS(
+                        svgNS,
+                        "ellipse"
+                    );
+
+                shadow.setAttribute("cx", 6);
+                shadow.setAttribute("cy", 5);
+                shadow.setAttribute("rx", 13);
+                shadow.setAttribute("ry", 5);
+                shadow.setAttribute("fill", "#000");
+                shadow.setAttribute("opacity", "0.18");
+
+                g.appendChild(shadow);
+
+
+                const c =
+                    document.createElementNS(
+                        svgNS,
+                        "circle"
+                    );
+
+                c.setAttribute("r", 9);
+                c.setAttribute("fill", "#4f7a2e");
+
+                g.appendChild(c);
+
+
+                const c2 =
+                    document.createElementNS(
+                        svgNS,
+                        "circle"
+                    );
+
+                c2.setAttribute("cx", -4);
+                c2.setAttribute("cy", -3);
+                c2.setAttribute("r", 6);
+                c2.setAttribute("fill", "#5c8a37");
+
+                g.appendChild(c2);
+
+                perimeterTrees.appendChild(g);
+
+            }
+
+
+            const treeSpots = [
+
+                [40, 60],
+                [120, 45],
+                [230, 70],
+                [330, 50],
+                [430, 75],
+                [540, 55],
+                [660, 40],
+                [770, 30],
+                [880, 45],
+                [990, 35],
+
+                [1230, 140],
+                [1250, 230],
+                [1245, 350],
+                [1255, 470],
+                [1258, 600],
+
+                [45, 340],
+                [35, 460],
+                [30, 560],
+
+                [40, 700],
+                [130, 690],
+                [230, 715],
+                [330, 700],
+                [430, 720],
+                [540, 705],
+                [650, 700],
+                [760, 715],
+                [870, 705],
+                [980, 700],
+                [1090, 715],
+                [1190, 705]
+
+            ];
+
+
+            treeSpots.forEach(([x, y]) => {
+
+                tree(
+                    x,
+                    y,
+                    0.9 + Math.random() * 0.5
+                );
+
+            });
+
+
+            /* =====================================================
+               PLOT DETAILS
+            ====================================================== */
+
+            function hashStr(s) {
+
+                let h = 0;
+
+                for (
+                    let i = 0;
+                    i < s.length;
+                    i++
+                ) {
+
+                    h =
+                        (h * 31 + s.charCodeAt(i))
+                        >>> 0;
+
+                }
+
+                return h;
+
+            }
+
+
+            const FACINGS = [
+
+                "North",
+                "South",
+                "East",
+                "West",
+                "North-East",
+                "North-West",
+                "South-East",
+                "South-West"
+
+            ];
+
+
+            const STATUS = [
+
+                "Available",
+                "Available",
+                "Available",
+                "Reserved",
+                "Sold"
+
+            ];
+
+
+            function detailsFor(
+                label,
+                category
+            ) {
+
+                const h = hashStr(label);
+
+                const facing =
+                    FACINGS[
+                    h % FACINGS.length
+                    ];
+
+
+                const status =
+                    STATUS[
+                    (h >> 3) % STATUS.length
+                    ];
+
+
+                let widthFt;
+                let depthFt;
+                let rate;
+                let typeName;
+
+
+                if (category === "shop") {
+
+                    widthFt =
+                        18 + (h % 5) * 2;
+
+                    depthFt =
+                        30 + (h % 4) * 3;
+
+                    rate =
+                        4200 + (h % 6) * 350;
+
+                    typeName =
+                        "Corner Shop / Commercial Plot";
+
+                }
+
+                else if (category === "community") {
+
+                    widthFt =
+                        20 + (h % 3) * 5;
+
+                    depthFt =
+                        26 + (h % 3) * 4;
+
+                    rate =
+                        2600 + (h % 5) * 220;
+
+                    typeName =
+                        "Community / Institutional Plot";
+
+                }
+
+                else {
+
+                    widthFt =
+                        25 + (h % 5) * 5;
+
+                    depthFt =
+                        40 + (h % 4) * 5;
+
+                    rate =
+                        1800 + (h % 7) * 180;
+
+                    typeName =
+                        "Residential Plot";
+
+                }
+
+
+                const area =
+                    widthFt * depthFt;
+
+
+                const price =
+                    area * rate;
+
+
+                return {
+
+                    typeName,
+
+                    dims:
+                        `${widthFt} × ${depthFt} ft`,
+
+                    area:
+                        area.toLocaleString("en-IN")
+                        + " sq.ft",
+
+                    facing,
+
+                    status,
+
+                    price:
+                        "₹ " +
+                        price.toLocaleString("en-IN"),
+
+                    plotNo:
+                        label
+
+                };
+
+            }
+
+
+            /* =====================================================
+               POPUP
+            ====================================================== */
+
+            const popup =
+                document.getElementById(
+                    "popup"
+                );
+
+
+            const popupTitle =
+                document.getElementById(
+                    "popupTitle"
+                );
+
+
+            const popupBody =
+                document.getElementById(
+                    "popupBody"
+                );
+
+
+            const popupClose =
+                document.getElementById(
+                    "popupClose"
+                );
+
+
+            const mapWrap =
+                document.getElementById(
+                    "mapWrap"
+                );
+
+
+            const svgEl =
+                document.getElementById(
+                    "siteMap"
+                );
+
+
+            let selectedEl = null;
+
+
+            function clearSelection() {
+
+                if (selectedEl) {
+
+                    selectedEl.classList.remove(
+                        "selected"
+                    );
+
+                    selectedEl = null;
+
+                }
+
+            }
+
+
+            function closePopup() {
+
+                popup.classList.remove(
+                    "visible"
+                );
+
+                popup.setAttribute(
+                    "aria-hidden",
+                    "true"
+                );
+
+                clearSelection();
+
+            }
+
+
+            popupClose.addEventListener(
+                "click",
+                closePopup
+            );
+
+
+            mapWrap.addEventListener(
+                "click",
+                e => {
+
+                    if (e.target === mapWrap) {
+
+                        closePopup();
+
+                    }
+
+                }
+            );
+
+
+            function svgPointToScreen(pt) {
+                const viewBox = svgEl.viewBox.baseVal;
+
+                return {
+                    x: (pt.x - viewBox.x) *
+                        (svgEl.clientWidth / viewBox.width),
+
+                    y: (pt.y - viewBox.y) *
+                        (svgEl.clientHeight / viewBox.height)
+                };
+            }
+
+            function showPopupFor(plotObj, clickEvt) {
+
+                // Remove previous selection
+                allPlots.forEach(p =>
+                    p.poly.classList.remove("selected")
+                );
+
+                plotObj.poly.classList.add("selected");
+                selectedEl = plotObj.poly;
+
+                const d = detailsFor(
+                    plotObj.label,
+                    plotObj.category
+                );
+
+                popupTitle.textContent = d.plotNo;
+
+                popupBody.innerHTML = `
+    <div class="detail-row">
+        <span>Type</span>
+        <strong>${d.typeName}</strong>
+    </div>
+
+    <div class="detail-row">
+        <span>Dimensions</span>
+        <strong>${d.dims}</strong>
+    </div>
+
+    <div class="detail-row">
+        <span>Area</span>
+        <strong>${d.area}</strong>
+    </div>
+
+    <div class="detail-row">
+        <span>Facing</span>
+        <strong>${d.facing}</strong>
+    </div>
+
+    <div class="detail-row">
+        <span>Est. Price</span>
+        <strong>${d.price}</strong>
+    </div>
+
+    <div class="detail-row">
+        <span>Status</span>
+        <strong class="status-pill ${d.status.toLowerCase()}">
+            ${d.status}
+        </strong>
+    </div>
+
+    <button
+        class="enquire-btn"
+        onclick="window.enquirePlot('${d.plotNo}')">
+        Enquire About This Plot
+    </button>
+`;
+
+                window.enquirePlot = function (plotNo) {
+
+                    const phoneNumber = "919876543210"; // Replace with your WhatsApp number
+
+                    const message = `Hi, I am interested in Plot ${plotNo}.`;
+
+                    const whatsappUrl =
+                        "https://wa.me/" +
+                        phoneNumber +
+                        "?text=" +
+                        encodeURIComponent(message);
+
+                    window.open(whatsappUrl, "_blank");
+                }
+
+                // Show popup first so its dimensions are available
+                popup.classList.add("visible");
+                popup.setAttribute("aria-hidden", "false");
+
+                // Get selected plot center in SVG coordinates
+                const p = svgPointToScreen(plotObj.center);
+
+                // Popup dimensions
+                const popupWidth = popup.offsetWidth;
+                const popupHeight = popup.offsetHeight;
+
+                const mapWidth = svgEl.clientWidth;
+                const mapHeight = svgEl.clientHeight;
+
+                const gap = 12;
+
+                /*
+                 * Default:
+                 * Popup appears to the RIGHT of selected plot
+                 */
+                let left = p.x + gap;
+                let top = p.y - popupHeight / 2;
+
+                /*
+                 * If there isn't enough room on the RIGHT,
+                 * put popup on the LEFT.
+                 */
+                if (left + popupWidth > mapWidth - 5) {
+                    left = p.x - popupWidth - gap;
+                    popup.classList.remove("arrow-top");
+                    popup.classList.add("arrow-bottom");
+                } else {
+                    popup.classList.remove("arrow-bottom");
+                    popup.classList.add("arrow-top");
+                }
+
+                /*
+                 * Keep popup inside the map vertically
+                 */
+                if (top < 5) {
+                    top = 5;
+                }
+
+                if (top + popupHeight > mapHeight - 5) {
+                    top = mapHeight - popupHeight - 5;
+                }
+
+                /*
+                 * Keep popup inside horizontally as well
+                 */
+                if (left < 5) {
+                    left = 5;
+                }
+
+                if (left + popupWidth > mapWidth - 5) {
+                    left = mapWidth - popupWidth - 5;
+                }
+
+                popup.style.left = `${left}px`;
+                popup.style.top = `${top}px`;
+            }
+
+            /* =====================================================
+               PLOT CLICK EVENTS
+            ====================================================== */
+            /* =====================================================
+               PLOT CLICK EVENTS
+            ====================================================== */
+
+            plotsLayer.addEventListener("click", function (e) {
+
+                const plot = e.target.closest(".plot");
+
+                if (!plot) {
+                    return;
+                }
+
+                e.stopPropagation();
+
+                const plotObj = allPlots.find(
+                    p => p.poly === plot
+                );
+
+                if (!plotObj) {
+                    return;
+                }
+
+                showPopupFor(plotObj, e);
+
+            });
+
+
+            /* =====================================================
+               GARDEN POPUPS
+            ====================================================== */
+
+            function wireGarden(id) {
+
+                const el =
+                    document.getElementById(id);
+
+
+                el.addEventListener(
+                    "click",
+                    e => {
+
+                        e.stopPropagation();
+
+
+                        clearSelection();
+
+
+                        const box =
+                            el.getBBox();
+
+
+                        const center = {
+
+                            x:
+                                box.x +
+                                box.width / 2,
+
+                            y:
+                                box.y +
+                                box.height / 2
+
+                        };
+
+
+                        popupTitle.textContent =
+                            el.dataset.name;
+
+
+                        popupBody.innerHTML = `
+
+        <div
+          class="popup-row"
+          style="border:none;">
+
+          <span></span>
+
+        </div>
+
+        <p
+          style="
+            margin:0 0 8px;
+            font-size:12.5px;
+            color:#5b503d;
+          ">
+
+          ${el.dataset.desc}
+
+        </p>
+
+        <div class="popup-row">
+
+          <span>Type</span>
+
+          <span>
+            Common Area
+          </span>
+
+        </div>
+
+        <div class="popup-row">
+
+          <span>Access</span>
+
+          <span>
+            All Residents
+          </span>
+
+        </div>
+
+      `;
+
+
+                        const screenPt =
+                            svgPointToScreen(
+                                center
+                            );
+
+
+                        const wrapRect =
+                            mapWrap.getBoundingClientRect();
+
+
+                        popup.classList.add(
+                            "visible"
+                        );
+
+
+                        popup.setAttribute(
+                            "aria-hidden",
+                            "false"
+                        );
+
+
+                        requestAnimationFrame(() => {
+
+                            const pw =
+                                popup.offsetWidth;
+
+                            const ph =
+                                popup.offsetHeight;
+
+
+                            let left =
+                                screenPt.x - pw / 2;
+
+
+                            let top =
+                                screenPt.y - ph - 18;
+
+
+                            let arrowClass =
+                                "arrow-bottom";
+
+
+                            if (top < 4) {
+
+                                top =
+                                    screenPt.y + 18;
+
+                                arrowClass =
+                                    "arrow-top";
+
+                            }
+
+
+                            if (left < 4)
+                                left = 4;
+
+
+                            if (
+                                left + pw >
+                                wrapRect.width - 4
+                            ) {
+
+                                left =
+                                    wrapRect.width -
+                                    pw -
+                                    4;
+
+                            }
+
+
+                            popup.classList.remove(
+                                "arrow-top",
+                                "arrow-bottom"
+                            );
+
+
+                            popup.classList.add(
+                                arrowClass
+                            );
+
+
+                            popup.style.left =
+                                left + "px";
+
+
+                            popup.style.top =
+                                top + "px";
+
+                        });
+
+                    });
+
+            }
+
+
+            wireGarden(
+                "gardenSmall"
+            );
+
+
+            wireGarden(
+                "gardenBig"
+            );
+
+
+            /* =====================================================
+               CLOSE POPUP
+            ====================================================== */
+
+            window.addEventListener(
+                "resize",
+                closePopup
+            );
+
+            window.addEventListener(
+                "scroll",
+                closePopup,
+                true
+            );
+
+
+            /* =====================================================
+               =====================================================
+               3D ROTATION SYSTEM
+               =====================================================
+            ====================================================== */
+
+            const stage =
+                document.getElementById(
+                    "stage"
+                );
+
+            const map3D =
+                document.getElementById(
+                    "map3D"
+                );
+
+            const rotateLeft =
+                document.getElementById(
+                    "rotateLeft"
+                );
+
+            const rotateRight =
+                document.getElementById(
+                    "rotateRight"
+                );
+
+            const rotateUp =
+                document.getElementById(
+                    "rotateUp"
+                );
+
+            const rotateDown =
+                document.getElementById(
+                    "rotateDown"
+                );
+
+            const resetRotation =
+                document.getElementById(
+                    "resetRotation"
+                );
+
+
+            /*
+             * Current rotation.
+             *
+             * rotateX = vertical tilt
+             * rotateY = horizontal rotation
+             * rotateZ = slight clockwise/counter-clockwise rotation
+             */
+
+            let rotationX = 0;
+            let rotationY = 0;
+            let rotationZ = 0;
+
+
+            /*
+             * Drag state
+             */
+
+            let dragging = false;
+
+            let pointerStartX = 0;
+            let pointerStartY = 0;
+
+            let pointerMoved = false;
+
+            let initialRotationX = 0;
+            let initialRotationY = 0;
+
+
+            /*
+             * Rotation limits.
+             *
+             * Keeping limits prevents the map from going
+             * completely upside down.
+             */
+
+            const MAX_X = 58;
+            const MAX_Y = 65;
+
+
+            /* =====================================================
+               APPLY 3D TRANSFORM
+            ====================================================== */
+
+            function apply3DRotation(
+                smooth
+            ) {
+
+                if (smooth) {
+
+                    map3D.style.transition =
+                        "transform .28s cubic-bezier(.2,.8,.2,1)";
+
+                } else {
+
+                    map3D.style.transition =
+                        "none";
+
+                }
+
+
+                map3D.style.transform =
+                    `
+      perspective(1400px)
+      rotateX(${rotationX}deg)
+      rotateY(${rotationY}deg)
+      rotateZ(${rotationZ}deg)
+    `;
+
+            }
+
+
+            /* =====================================================
+               CLAMP
+            ====================================================== */
+
+            function clamp(
+                value,
+                min,
+                max
+            ) {
+
+                return Math.max(
+                    min,
+                    Math.min(
+                        max,
+                        value
+                    )
+                );
+
+            }
+
+
+            /* =====================================================
+               POINTER DOWN
+            ====================================================== */
+
+            stage.addEventListener(
+                "pointerdown",
+                function (e) {
+
+                    /*
+                     * Do not start rotation when clicking
+                     * popup controls.
+                     */
+
+                    if (
+                        e.target.closest(".popup") ||
+                        e.target.closest(".rotation-controls")
+                    ) {
+                        return;
+                    }
+
+                    dragging = true;
+
+                    pointerMoved = false;
+
+                    pointerStartX = e.clientX;
+                    pointerStartY = e.clientY;
+
+                    initialRotationX = rotationX;
+                    initialRotationY = rotationY;
+
+                    map3D.style.transition = "none";
+
+                    /*
+                     * Capture pointer only when actual movement
+                     * starts. This allows normal plot taps/clicks.
+                     */
+
+                },
+                {
+                    passive: true
+                }
+            );
+
+
+            /* =====================================================
+               POINTER MOVE
+            ====================================================== */
+
+            stage.addEventListener(
+                "pointermove",
+                function (e) {
+
+                    if (!dragging)
+                        return;
+
+                    const dx =
+                        e.clientX -
+                        pointerStartX;
+
+                    const dy =
+                        e.clientY -
+                        pointerStartY;
+
+                    /*
+                     * Consider it a drag only after the pointer
+                     * has actually moved.
+                     */
+
+                    if (
+                        Math.abs(dx) > 5 ||
+                        Math.abs(dy) > 5
+                    ) {
+
+                        if (!pointerMoved) {
+
+                            pointerMoved = true;
+
+                            try {
+
+                                stage.setPointerCapture(
+                                    e.pointerId
+                                );
+
+                            } catch (error) { }
+
+                        }
+
+                    }
+
+                    if (!pointerMoved)
+                        return;
+
+
+                    /*
+                     * Horizontal drag rotates around Y axis.
+                     */
+
+                    rotationY =
+                        initialRotationY +
+                        dx * 0.32;
+
+
+
+                    /*
+                     * Vertical drag rotates around X axis.
+                     */
+
+                    rotationX =
+                        initialRotationX -
+                        dy * 0.28;
+
+                }
+            )
+
+
+            /* =====================================================
+               STOP DRAGGING
+            ====================================================== */
+
+            function stopRotation(e) {
+
+                if (!dragging)
+                    return;
+
+                /*
+                 * If the pointer did NOT move, this was a tap/click.
+                 * Find the actual SVG element underneath the pointer
+                 * and open its popup.
+                 */
+
+                if (!pointerMoved) {
+
+                    const element =
+                        document.elementFromPoint(
+                            e.clientX,
+                            e.clientY
+                        );
+
+                    const plot =
+                        element &&
+                        element.closest &&
+                        element.closest(".plot");
+
+                    if (plot) {
+
+                        const plotObj =
+                            allPlots.find(
+                                p => p.poly === plot
+                            );
+
+                        if (plotObj) {
+
+                            showPopupFor(
+                                plotObj,
+                                e
+                            );
+
+                        }
+
+                    }
+
+                }
+
+
+                dragging = false;
+
+                try {
+
+                    if (
+                        stage.hasPointerCapture &&
+                        stage.hasPointerCapture(e.pointerId)
+                    ) {
+
+                        stage.releasePointerCapture(
+                            e.pointerId
+                        );
+
+                    }
+
+                } catch (error) { }
+
+
+                apply3DRotation(
+                    true
+                );
+
+            }
+
+
+            stage.addEventListener(
+                "pointerup",
+                stopRotation
+            );
+
+
+            stage.addEventListener(
+                "pointercancel",
+                stopRotation
+            );
+
+
+            /* =====================================================
+               BUTTON ROTATION
+            ====================================================== */
+
+            rotateLeft.addEventListener(
+                "click",
+                function () {
+
+                    rotationY =
+                        clamp(
+                            rotationY - 10,
+                            -MAX_Y,
+                            MAX_Y
+                        );
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            rotateRight.addEventListener(
+                "click",
+                function () {
+
+                    rotationY =
+                        clamp(
+                            rotationY + 10,
+                            -MAX_Y,
+                            MAX_Y
+                        );
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            rotateUp.addEventListener(
+                "click",
+                function () {
+
+                    rotationX =
+                        clamp(
+                            rotationX - 10,
+                            -MAX_X,
+                            MAX_X
+                        );
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            rotateDown.addEventListener(
+                "click",
+                function () {
+
+                    rotationX =
+                        clamp(
+                            rotationX + 10,
+                            -MAX_X,
+                            MAX_X
+                        );
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            /* =====================================================
+               RESET
+            ====================================================== */
+
+            resetRotation.addEventListener(
+                "click",
+                function () {
+
+                    rotationX = 0;
+                    rotationY = 0;
+                    rotationZ = 0;
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            /* =====================================================
+               DOUBLE CLICK / DOUBLE TAP RESET
+            ====================================================== */
+
+            stage.addEventListener(
+                "dblclick",
+                function (e) {
+
+                    if (
+                        e.target.closest(
+                            ".popup"
+                        )
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    rotationX = 0;
+                    rotationY = 0;
+                    rotationZ = 0;
+
+                    apply3DRotation(
+                        true
+                    );
+
+                }
+            );
+
+
+            /* =====================================================
+               INITIAL STATE
+            ====================================================== */
+
+            apply3DRotation(
+                false
+            );
+
+        })();
+
+    </script>
+
+</body>
+
+</html>
