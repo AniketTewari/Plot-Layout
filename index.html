@@ -3738,13 +3738,13 @@
                ZOOM
             ====================================================== */
 
-            let zoom = 2.5;
+            let zoom = 1.8;
 
 
             const MIN_ZOOM = 0.65;
             const MAX_ZOOM = 2.5;
 
-            const INITIAL_ZOOM = 2.5;
+            const INITIAL_ZOOM = 1.8;
 
 
             const MAX_X = 58;
@@ -3941,100 +3941,38 @@
                 "pointerdown",
                 function (e) {
 
-                    /*
-                     * Never rotate while touching popup
-                     * or rotation controls.
-                     */
-
                     if (
                         e.target.closest(".popup") ||
                         e.target.closest(".rotation-controls")
                     ) {
-
                         return;
-
                     }
 
+                    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-                    pointers.set(
-                        e.pointerId,
-                        {
-                            x: e.clientX,
-                            y: e.clientY
-                        }
-                    );
+                    /* TWO FINGERS — pinch zoom (unchanged) */
+                    if (pointers.size === 2) {
 
-
-                    /*
-                     * TWO FINGERS
-                     *
-                     * Immediately enter pinch mode.
-                     */
-
-                    if (
-                        pointers.size === 2
-                    ) {
-
-                        pinchActive =
-                            true;
-
-                        oneFingerActive =
-                            false;
-
+                        pinchActive = true;
+                        oneFingerActive = false;
                         moved = true;
 
-
-                        pinchStartDistance =
-                            getPointerDistance();
-
-
-                        pinchStartZoom =
-                            zoom;
-
+                        pinchStartDistance = getPointerDistance();
+                        pinchStartZoom = zoom;
 
                         return;
 
                     }
 
-
                     /*
-                     * ONE FINGER
+                     * ONE FINGER — rotation disabled.
+                     * Just track the pointer for potential future pinch,
+                     * but don't start rotation tracking.
                      */
 
-                    if (
-                        pointers.size === 1
-                    ) {
-
-                        oneFingerActive =
-                            true;
-
-                        pinchActive =
-                            false;
-
-                        moved = false;
-
-
-                        startX =
-                            e.clientX;
-
-                        startY =
-                            e.clientY;
-
-
-                        startRotationX =
-                            rotationX;
-
-                        startRotationY =
-                            rotationY;
-
-                    }
-
                 },
-                {
-                    passive: true
-                }
+                { passive: true }
             );
-
 
             /* =====================================================
                POINTER MOVE
@@ -4044,143 +3982,39 @@
                 "pointermove",
                 function (e) {
 
-                    if (
-                        !pointers.has(
-                            e.pointerId
-                        )
-                    ) {
+                    if (!pointers.has(e.pointerId)) {
+                        return;
+                    }
+
+                    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                    /* PINCH ZOOM (unchanged) */
+                    if (pointers.size >= 2 && pinchActive) {
+
+                        const currentDistance = getPointerDistance();
+
+                        if (pinchStartDistance > 0) {
+
+                            const ratio = currentDistance / pinchStartDistance;
+
+                            zoom = clamp(pinchStartZoom * ratio, MIN_ZOOM, MAX_ZOOM);
+
+                            applyTransform(false);
+
+                        }
 
                         return;
 
                     }
 
-
-                    pointers.set(
-                        e.pointerId,
-                        {
-                            x: e.clientX,
-                            y: e.clientY
-                        }
-                    );
-
-
-                    /* =================================================
-                       PINCH ZOOM
-                    ================================================= */
-
-                    if (
-                        pointers.size >= 2 &&
-                        pinchActive
-                    ) {
-
-                        const currentDistance =
-                            getPointerDistance();
-
-
-                        if (
-                            pinchStartDistance > 0
-                        ) {
-
-                            const ratio =
-                                currentDistance /
-                                pinchStartDistance;
-
-
-                            zoom =
-                                clamp(
-                                    pinchStartZoom *
-                                    ratio,
-
-                                    MIN_ZOOM,
-                                    MAX_ZOOM
-                                );
-
-
-                            applyTransform(
-                                false
-                            );
-
-                        }
-
-
-                        /*
-                         * IMPORTANT:
-                         *
-                         * Return here so a pinch can NEVER
-                         * rotate the layout.
-                         */
-
-                        return;
-
-                    }
-
-
-                    /* =================================================
-                       ONE FINGER ROTATION
-                    ================================================= */
-
-                    if (
-                        pointers.size === 1 &&
-                        oneFingerActive
-                    ) {
-
-                        const dx =
-                            e.clientX -
-                            startX;
-
-
-                        const dy =
-                            e.clientY -
-                            startY;
-
-
-                        if (
-                            Math.abs(dx) > 5 ||
-                            Math.abs(dy) > 5
-                        ) {
-
-                            moved = true;
-
-                        }
-
-
-                        if (!moved) {
-                            return;
-                        }
-
-
-                        rotationY =
-                            clamp(
-                                startRotationY +
-                                dx * 0.32,
-
-                                -MAX_Y,
-                                MAX_Y
-                            );
-
-
-                        rotationX =
-                            clamp(
-                                startRotationX -
-                                dy * 0.28,
-
-                                -MAX_X,
-                                MAX_X
-                            );
-
-
-                        applyTransform(
-                            false
-                        );
-
-                    }
+                    /*
+                     * One-finger rotation removed —
+                     * single-finger drag no longer rotates the map.
+                     */
 
                 },
-                {
-                    passive: true
-                }
+                { passive: true }
             );
-
 
             /* =====================================================
                POINTER UP
