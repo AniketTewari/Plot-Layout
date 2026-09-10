@@ -150,9 +150,8 @@
             position: relative;
             flex: 1;
 
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            display: block;
+            /* was: display: flex; justify-content: ...; align-items: ...; */
 
             padding: 18px;
 
@@ -164,16 +163,8 @@
             perspective: 1400px;
             perspective-origin: 50% 45%;
 
-            /*
-             * IMPORTANT:
-             * The old version used overflow:hidden and touch-action:none.
-             *
-             * Those prevent natural mobile scrolling/pinch behavior.
-             */
             overflow: auto;
-
             touch-action: pan-x pan-y;
-
             -webkit-overflow-scrolling: touch;
 
             min-height: 0;
@@ -188,24 +179,19 @@
 
             width: 100%;
             max-width: 1180px;
-
             min-width: 320px;
 
+            margin: 0 auto;
+            /* ← new: centers it, and scroll overflow becomes symmetric */
+
             transform-style: preserve-3d;
-
-            transform:
-                perspective(1400px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
-
+            transform: perspective(1400px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
             transform-origin: center top;
-
             will-change: transform;
 
-            /*
-             * Keep browser scrolling enabled.
-             */
             touch-action: pan-x pan-y;
-
             flex-shrink: 0;
+            /* harmless leftover, can stay or be removed */
         }
 
         /* =====================================================
@@ -999,33 +985,35 @@
              ROTATION CONTROLS
         ====================================================== -->
 
-            <div class="rotation-controls">
 
-                <button type="button" id="rotateLeft" aria-label="Rotate left">
-                    ⟲
-                </button>
 
-                <button type="button" id="rotateRight" aria-label="Rotate right">
-                    ⟳
-                </button>
+        </div>
 
-                <button type="button" id="rotateUp" aria-label="Rotate up">
-                    ↑
-                </button>
+        <div class="rotation-controls">
 
-                <button type="button" id="rotateDown" aria-label="Rotate down">
-                    ↓
-                </button>
+            <button type="button" id="rotateLeft" aria-label="Rotate left">
+                ⟲
+            </button>
 
-                <span class="rotation-text">
-                    Drag map to rotate · Pinch to zoom
-                </span>
+            <button type="button" id="rotateRight" aria-label="Rotate right">
+                ⟳
+            </button>
 
-                <button type="button" id="resetRotation" aria-label="Reset 3D rotation">
-                    ↺
-                </button>
+            <button type="button" id="rotateUp" aria-label="Rotate up">
+                ↑
+            </button>
 
-            </div>
+            <button type="button" id="rotateDown" aria-label="Rotate down">
+                ↓
+            </button>
+
+            <span class="rotation-text">
+                Drag map to rotate · Pinch to zoom
+            </span>
+
+            <button type="button" id="resetRotation" aria-label="Reset 3D rotation">
+                ↺
+            </button>
 
         </div>
 
@@ -1034,12 +1022,12 @@
          FOOTER
     ====================================================== -->
 
-        <footer class="foot">
+        <!-- <footer class="foot">
 
             Layout is an interactive schematic reproduction for illustrative purposes
             · Not to exact engineering scale
 
-        </footer>
+        </footer> -->
 
     </div>
 
@@ -3750,11 +3738,13 @@
                ZOOM
             ====================================================== */
 
-            let zoom = 1;
+            let zoom = 2.5;
 
 
             const MIN_ZOOM = 0.65;
             const MAX_ZOOM = 2.5;
+
+            const INITIAL_ZOOM = 2.5;
 
 
             const MAX_X = 58;
@@ -3793,6 +3783,26 @@
             let pinchStartZoom = 1;
 
 
+
+
+            function reserveZoomSpace() {
+
+                // Temporarily clear margins to measure the true natural width
+                map3D.style.marginLeft = "";
+                map3D.style.marginRight = "";
+
+                const naturalWidth = map3D.offsetWidth;
+
+                // Reserve enough space for the largest possible zoom (both directions)
+                const maxExtra = naturalWidth * (MAX_ZOOM - 1);
+                const half = maxExtra / 2;
+
+                map3D.style.marginLeft = half + "px";
+                map3D.style.marginRight = half + "px";
+
+            }
+
+
             /* =====================================================
                CLAMP
             ====================================================== */
@@ -3810,6 +3820,24 @@
                         value
                     )
                 );
+
+            }
+
+            function centerStage() {
+
+                const scrollableWidth =
+                    stage.scrollWidth - stage.clientWidth;
+
+                if (scrollableWidth > 0) {
+                    stage.scrollLeft = scrollableWidth / 2;
+                }
+
+                const scrollableHeight =
+                    stage.scrollHeight - stage.clientHeight;
+
+                if (scrollableHeight > 0) {
+                    stage.scrollTop = scrollableHeight / 2;
+                }
 
             }
 
@@ -4333,7 +4361,7 @@
 
                     rotationZ = 0;
 
-                    zoom = 1;
+                    zoom = INITIAL_ZOOM;
 
 
                     applyTransform(
@@ -4372,7 +4400,7 @@
 
                     rotationZ = 0;
 
-                    zoom = 1;
+                    zoom = INITIAL_ZOOM;
 
 
                     applyTransform(
@@ -4384,12 +4412,55 @@
 
 
             /* =====================================================
+   INITIAL STATE
+====================================================== */
+            /* =====================================================
                INITIAL STATE
             ====================================================== */
 
-            applyTransform(
-                false
-            );
+            reserveZoomSpace();
+            applyTransform(false);
+            requestAnimationFrame(centerStage);
+
+            let resizeTimer;
+            window.addEventListener("resize", function () {
+
+                clearTimeout(resizeTimer);
+
+                resizeTimer = setTimeout(function () {
+
+                    reserveZoomSpace();
+                    requestAnimationFrame(centerStage);
+
+                }, 150);
+
+            });
+
+            requestAnimationFrame(function () {
+
+                const scrollableWidth = stage.scrollWidth - stage.clientWidth;
+                if (scrollableWidth > 0) {
+                    stage.scrollLeft = scrollableWidth / 2;
+                }
+
+                const scrollableHeight = stage.scrollHeight - stage.clientHeight;
+                if (scrollableHeight > 0) {
+                    stage.scrollTop = scrollableHeight / 2;
+                }
+
+            });
+
+            resetRotation.addEventListener("click", function () {
+
+                rotationX = 0;
+                rotationY = 0;
+                rotationZ = 0;
+                zoom = INITIAL_ZOOM;
+
+                applyTransform(true);
+                requestAnimationFrame(centerStage);
+
+            });
 
         })();
 
