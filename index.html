@@ -697,26 +697,17 @@
 
             .stage {
                 min-height: calc(100dvh - 80px);
-
                 padding: 10px;
-
                 perspective: 1100px;
-
                 overflow: auto;
-
                 touch-action: pan-x pan-y;
-
-                /*
-                 * Gives the browser enough room to scroll
-                 * around a transformed layout.
-                 */
                 align-items: flex-start;
             }
 
             .map-3d {
-                width: 100%;
-                min-width: 320px;
-
+                width: 700px;
+                max-width: none;
+                min-width: 700px;
                 transform-origin: center top;
             }
 
@@ -4012,147 +4003,60 @@
                POINTER MOVE
             ====================================================== */
 
-            stage.addEventListener(
-                "pointermove",
-                function (e) {
+            stage.addEventListener("pointermove", (e) => {
 
-                    if (
-                        !pointers.has(
-                            e.pointerId
-                        )
-                    ) {
+                if (!pointers.has(e.pointerId)) return;
 
+                pointers.set(e.pointerId, {
+                    x: e.clientX,
+                    y: e.clientY
+                });
+
+                // =========================
+                // TWO FINGER = PINCH ZOOM ONLY
+                // =========================
+                if (pointers.size === 2) {
+
+                    const pts = [...pointers.values()];
+
+                    const dx = pts[0].x - pts[1].x;
+                    const dy = pts[0].y - pts[1].y;
+
+                    const distance = Math.hypot(dx, dy);
+
+                    if (!pinchActive) {
+                        pinchActive = true;
+                        pinchStartDistance = distance;
+                        pinchStartZoom = zoom;
                         return;
-
                     }
 
+                    if (pinchStartDistance > 0) {
 
-                    pointers.set(
-                        e.pointerId,
-                        {
-                            x: e.clientX,
-                            y: e.clientY
-                        }
-                    );
+                        zoom = pinchStartZoom *
+                            (distance / pinchStartDistance);
 
-
-                    /* =================================================
-                       PINCH ZOOM
-                    ================================================= */
-
-                    if (
-                        pointers.size >= 2 &&
-                        pinchActive
-                    ) {
-
-                        const currentDistance =
-                            getPointerDistance();
-
-
-                        if (
-                            pinchStartDistance > 0
-                        ) {
-
-                            const ratio =
-                                currentDistance /
-                                pinchStartDistance;
-
-
-                            zoom =
-                                clamp(
-                                    pinchStartZoom *
-                                    ratio,
-
-                                    MIN_ZOOM,
-                                    MAX_ZOOM
-                                );
-
-
-                            applyTransform(
-                                false
-                            );
-
-                        }
-
-
-                        /*
-                         * IMPORTANT:
-                         *
-                         * Return here so a pinch can NEVER
-                         * rotate the layout.
-                         */
-
-                        return;
-
-                    }
-
-
-                    /* =================================================
-                       ONE FINGER ROTATION
-                    ================================================= */
-
-                    if (
-                        pointers.size === 1 &&
-                        oneFingerActive
-                    ) {
-
-                        const dx =
-                            e.clientX -
-                            startX;
-
-
-                        const dy =
-                            e.clientY -
-                            startY;
-
-
-                        if (
-                            Math.abs(dx) > 5 ||
-                            Math.abs(dy) > 5
-                        ) {
-
-                            moved = true;
-
-                        }
-
-
-                        if (!moved) {
-                            return;
-                        }
-
-
-                        rotationY =
-                            clamp(
-                                startRotationY +
-                                dx * 0.32,
-
-                                -MAX_Y,
-                                MAX_Y
-                            );
-
-
-                        rotationX =
-                            clamp(
-                                startRotationX -
-                                dy * 0.28,
-
-                                -MAX_X,
-                                MAX_X
-                            );
-
-
-                        applyTransform(
-                            false
+                        zoom = Math.max(
+                            MIN_ZOOM,
+                            Math.min(MAX_ZOOM, zoom)
                         );
 
+                        applyTransform();
                     }
 
-                },
-                {
-                    passive: true
+                    return;
                 }
-            );
 
+                // =========================
+                // ONE FINGER
+                // DO NOTHING
+                // NO ROTATION
+                // =========================
+
+                if (pointers.size === 1) {
+                    return;
+                }
+            });
 
             /* =====================================================
                POINTER UP
